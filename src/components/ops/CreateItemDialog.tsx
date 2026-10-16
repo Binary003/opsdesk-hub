@@ -90,7 +90,7 @@ export function CreateItemDialog() {
           <div className="grid grid-cols-3 gap-3">
             <Field label="Team">
               <Select value={team} onValueChange={setTeamId}>
-                <SelectTrigger size="sm"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {allowedTeams.map((t) => (
                     <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
@@ -100,7 +100,7 @@ export function CreateItemDialog() {
             </Field>
             <Field label="Type">
               <Select value={type} onValueChange={(v) => setType(v as ItemType)}>
-                <SelectTrigger size="sm"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(["incident", "request", "task", "change"] as const).map((t) => (
                     <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>
@@ -110,7 +110,7 @@ export function CreateItemDialog() {
             </Field>
             <Field label="Priority">
               <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
-                <SelectTrigger size="sm"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(["low", "medium", "high", "urgent"] as const).map((p) => (
                     <SelectItem key={p} value={p}>{PRIORITY_LABEL[p]}</SelectItem>
