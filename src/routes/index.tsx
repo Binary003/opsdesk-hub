@@ -31,7 +31,7 @@ export const Route = createFileRoute("/")({
     const router = useRouter();
     return (
       <div role="alert" className="text-sm">
-        {error.message}{" "}
+        {error instanceof Error ? error.message : String(error)}{" "}
         <button className="underline" onClick={() => router.invalidate()}>Retry</button>
       </div>
     );

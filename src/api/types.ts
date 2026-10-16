@@ -71,16 +71,16 @@ export type TimelineEntry =
   | { kind: "comment"; at: string; comment: Comment };
 
 export interface ListParams {
-  teamId?: string;
-  status?: Status;
-  priority?: Priority;
+  teamId?: string | undefined;
+  status?: Status | undefined;
+  priority?: Priority | undefined;
   /** user id, or "unassigned" */
-  assigneeId?: string;
-  overdue?: boolean;
-  quiet?: boolean;
-  q?: string;
-  cursor?: string | null;
-  limit?: number;
+  assigneeId?: string | undefined;
+  overdue?: boolean | undefined;
+  quiet?: boolean | undefined;
+  q?: string | undefined;
+  cursor?: string | null | undefined;
+  limit?: number | undefined;
 }
 
 export interface Page<T> {
