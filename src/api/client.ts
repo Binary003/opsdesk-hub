@@ -18,7 +18,7 @@ import type {
 import { ACTIVE, canTransition, isOverdue, isQuiet, isUrgentUnassigned, roleIn } from "@/lib/workflow";
 
 /** Base URL for the real backend. The in-memory implementation below ignores it. */
-export const API_URL: string = import.meta.env.VITE_API_URL ?? "";
+export const API_URL: string = import.meta.env["VITE_API_URL"] ?? "";
 
 export class ApiError extends Error {
   constructor(
@@ -40,7 +40,7 @@ const rand = () => {
   seed = (seed * 16807) % 2147483647;
   return (seed - 1) / 2147483646;
 };
-const pick = <T,>(a: readonly T[]) => a[Math.floor(rand() * a.length)];
+const pick = <T,>(a: readonly T[]): T => a[Math.floor(rand() * a.length)]!;
 const DAY = 86_400_000;
 const now = Date.now();
 const iso = (t: number) => new Date(t).toISOString();
@@ -69,7 +69,7 @@ const users: User[] = names.map((n, i) => ({
   email: `${n.split(" ")[0].toLowerCase()}@opsdesk.internal`,
   initials: n
     .split(" ")
-    .map((p) => p[0])
+    .map((p) => p[0] ?? "")
     .join(""),
 }));
 
@@ -102,7 +102,7 @@ let idSeq = 1;
 const nid = (p: string) => `${p}_${idSeq++}`;
 
 for (let i = 0; i < 100; i++) {
-  const team = teams[i % 5];
+  const team = teams[i % 5]!;
   counters[team.id] = (counters[team.id] ?? 0) + 1;
   const created = now - Math.floor(rand() * 40 * DAY);
   const updated = Math.min(now, created + Math.floor(rand() * 30 * DAY));
@@ -113,7 +113,7 @@ for (let i = 0; i < 100; i++) {
     id: nid("itm"),
     key: `${team.key}-${counters[team.id]}`,
     teamId: team.id,
-    title: pick(subjects[team.id]),
+    title: pick(subjects[team.id]!),
     description: "",
     type: pick(types),
     status,
@@ -203,7 +203,7 @@ export async function listItems(params: ListParams): Promise<Page<WorkItem>> {
   const limit = params.limit ?? 25;
   const start = params.cursor ? filtered.findIndex((i) => i.id === params.cursor) + 1 : 0;
   const page = filtered.slice(start, start + limit);
-  const nextCursor = start + limit < filtered.length ? page[page.length - 1].id : null;
+  const nextCursor = start + limit < filtered.length ? page[page.length - 1]!.id : null;
   return clone({ items: page, nextCursor, total: filtered.length });
 }
 

@@ -19,28 +19,31 @@ const STATUSES: Status[] = ["open", "in_progress", "pending_approval", "resolved
 const PRIORITIES: Priority[] = ["low", "medium", "high", "urgent"];
 
 export interface ItemsSearch {
-  team?: string;
-  status?: Status;
-  priority?: Priority;
-  assignee?: string;
-  overdue?: boolean;
-  quiet?: boolean;
-  q?: string;
+  team?: string | undefined;
+  status?: Status | undefined;
+  priority?: Priority | undefined;
+  assignee?: string | undefined;
+  overdue?: boolean | undefined;
+  quiet?: boolean | undefined;
+  q?: string | undefined;
 }
 
 const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 
 export const Route = createFileRoute("/items/")({
   ssr: false,
-  validateSearch: (s: Record<string, unknown>): ItemsSearch => ({
-    team: str(s.team),
-    status: STATUSES.includes(s.status as Status) ? (s.status as Status) : undefined,
-    priority: PRIORITIES.includes(s.priority as Priority) ? (s.priority as Priority) : undefined,
-    assignee: str(s.assignee),
-    overdue: s.overdue === true || s.overdue === "true" ? true : undefined,
-    quiet: s.quiet === true || s.quiet === "true" ? true : undefined,
-    q: str(s.q),
-  }),
+  validateSearch: (s: Record<string, unknown>): ItemsSearch => {
+    const g = (k: string) => s[k];
+    return {
+    team: str(s["team"]),
+    status: STATUSES.includes(s["status"] as Status) ? (s["status"] as Status) : undefined,
+    priority: PRIORITIES.includes(s["priority"] as Priority) ? (s["priority"] as Priority) : undefined,
+    assignee: str(s["assignee"]),
+    overdue: s["overdue"] === true || s["overdue"] === "true" ? true : undefined,
+    quiet: s["quiet"] === true || s["quiet"] === "true" ? true : undefined,
+    q: str(s["q"]),
+    };
+  },
   loaderDeps: ({ search }) => search,
   head: () => ({
     meta: [
@@ -59,7 +62,7 @@ export const Route = createFileRoute("/items/")({
     const router = useRouter();
     return (
       <div role="alert" className="text-sm">
-        {error.message}{" "}
+        {error instanceof Error ? error.message : String(error)}{" "}
         <button className="underline" onClick={() => router.invalidate()}>Retry</button>
       </div>
     );

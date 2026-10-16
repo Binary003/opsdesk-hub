@@ -34,7 +34,7 @@ export function useDirectory() {
 export function useMe() {
   const id = useCurrentUserId();
   const dir = useDirectory();
-  const user = dir.users.find((u) => u.id === id) ?? dir.users[0];
+  const user = dir.users.find((u) => u.id === id) ?? dir.users[0]!;
   return {
     user,
     roleFor: (teamId: string) => roleIn(dir.memberships, user.id, teamId),
