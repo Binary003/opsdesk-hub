@@ -1,12 +1,12 @@
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { differenceInCalendarDays, differenceInHours, format, formatDistanceToNowStrict } from "date-fns";
 import { ArrowLeft, CalendarDays, Clock3, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError, ConflictError, addComment, claimItem, transitionItem, updateItem } from "@/api/client";
 import type { ItemEvent, Priority, Role, TimelineEntry, WorkItem } from "@/api/types";
-import { itemQuery, timelineQuery, useDirectory, useMe } from "@/lib/queries";
+import { directoryQuery, itemQuery, timelineQuery, useDirectory, useMe } from "@/lib/queries";
 import { ACTIVE, attentionReasons, can, canTransition, nextTransitions, STATUS_LABEL } from "@/lib/workflow";
 import { Avatar, Gate, PriorityLabel, StatusBadge } from "@/components/ops/bits";
 import { Button } from "@/components/ui/button";
@@ -21,9 +21,19 @@ const TIMELINE_PAGE_SIZE = 10;
 export const Route = createFileRoute("/items/$key")({
   ssr: false,
   loader: async ({ context, params }) => {
+    await context.queryClient.ensureQueryData(directoryQuery);
     const item = await context.queryClient.ensureQueryData(itemQuery(params.key));
-    await context.queryClient.ensureQueryData(timelineQuery(item?.id ?? `missing:${params.key}`));
+    if (!item) throw notFound();
+    await context.queryClient.ensureQueryData(timelineQuery(item.id));
   },
+  head: ({ params }) => ({
+    meta: [
+      { title: `${params.key.toUpperCase()} · OpsDesk` },
+      { name: "description", content: `Work item ${params.key.toUpperCase()} details, status and activity.` },
+      { property: "og:title", content: `${params.key.toUpperCase()} · OpsDesk` },
+      { property: "og:description", content: `Work item ${params.key.toUpperCase()} details, status and activity.` },
+    ],
+  }),
   pendingComponent: DetailSkeleton,
   component: ItemDetailPage,
   errorComponent: ({ error }) => {
@@ -35,7 +45,14 @@ export const Route = createFileRoute("/items/$key")({
       </div>
     );
   },
-  notFoundComponent: () => <div className="text-sm">Item not found.</div>,
+  notFoundComponent: () => (
+    <div className="space-y-2 text-sm">
+      <p>That item doesn't exist.</p>
+      <Link to="/items" className="underline">
+        Back to all items
+      </Link>
+    </div>
+  ),
 });
 
 function ItemDetailPage() {
