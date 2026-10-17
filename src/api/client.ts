@@ -66,7 +66,7 @@ const names = [
 const users: User[] = names.map((n, i) => ({
   id: `u${i + 1}`,
   name: n,
-  email: `${n.split(" ")[0].toLowerCase()}@opsdesk.internal`,
+  email: `${(n.split(" ")[0] ?? "").toLowerCase()}@opsdesk.internal`,
   initials: n
     .split(" ")
     .map((p) => p[0] ?? "")
