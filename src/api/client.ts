@@ -17,8 +17,8 @@ import type {
 } from "./types";
 import { ACTIVE, canTransition, isOverdue, isQuiet, isUrgentUnassigned, roleIn } from "@/lib/workflow";
 
-/** Base URL for the real backend. The in-memory implementation below ignores it. */
-export const API_URL: string = import.meta.env["VITE_API_URL"] ?? "";
+/** Set VITE_API_URL to use the persistent Express/MongoDB API. */
+export const API_URL: string = (import.meta.env["VITE_API_URL"] ?? "").replace(/\/$/, "");
 
 export class ApiError extends Error {
   constructor(
@@ -32,6 +32,29 @@ export class ConflictError extends ApiError {
   constructor(public currentVersion: number) {
     super(409, `This item was changed by someone else (now v${currentVersion}). Reload to see the latest.`);
   }
+}
+
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  actorId?: string,
+  options?: Partial<MutationOptions>,
+): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(actorId ? { "x-actor-id": actorId } : {}),
+      ...(options?.idempotencyKey ? { "x-idempotency-key": options.idempotencyKey } : {}),
+      ...(options?.expectedVersion !== undefined ? { "x-expected-version": String(options.expectedVersion) } : {}),
+      ...init.headers,
+    },
+  });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+    throw new ApiError(response.status, payload?.message ?? `Request failed (${response.status})`);
+  }
+  return (await response.json()) as T;
 }
 
 // ---------------------------------------------------------------- fake data
@@ -181,11 +204,19 @@ const isApprover = (r: ReturnType<typeof roleIn>) => r === "admin" || r === "man
 
 // ---------------------------------------------------------------- API
 export async function getDirectory(): Promise<Directory> {
+  if (API_URL) return request<Directory>("/directory");
   await delay(80);
   return clone({ users, teams, memberships });
 }
 
 export async function listItems(params: ListParams): Promise<Page<WorkItem>> {
+  if (API_URL) {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== false) search.set(key, String(value));
+    });
+    return request<Page<WorkItem>>(`/items?${search.toString()}`);
+  }
   await delay();
   const q = params.q?.trim().toLowerCase();
   const t = Date.now();
@@ -208,6 +239,7 @@ export async function listItems(params: ListParams): Promise<Page<WorkItem>> {
 }
 
 export async function getItem(key: string): Promise<WorkItem | null> {
+  if (API_URL) return request<WorkItem | null>(`/items/${encodeURIComponent(key)}`);
   await delay();
   const it = items.find((i) => i.key.toLowerCase() === key.toLowerCase());
   return it ? clone(it) : null;
@@ -218,6 +250,7 @@ export async function createItem(
   input: Pick<WorkItem, "teamId" | "title" | "description" | "type" | "priority" | "dueAt" | "requiresApproval" | "assigneeId">,
   opts: { idempotencyKey: string; expectedVersion: 0 },
 ): Promise<WorkItem> {
+  if (API_URL) return request<WorkItem>("/items", { method: "POST", body: JSON.stringify(input) }, actorId, opts);
   return mutate(opts.idempotencyKey, () => {
     const role = roleIn(memberships, actorId, input.teamId);
     if (!isWorker(role)) throw new ApiError(403, "You can't create items in this team");
@@ -247,6 +280,7 @@ export async function updateItem(
   patch: Partial<Pick<WorkItem, "title" | "description" | "priority" | "assigneeId">>,
   opts: MutationOptions,
 ): Promise<WorkItem> {
+  if (API_URL) return request<WorkItem>(`/items/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(patch) }, actorId, opts);
   return mutate(opts.idempotencyKey, () => {
     const item = findItem(id);
     const needsAssign = "assigneeId" in patch && patch.assigneeId !== item.assigneeId;
@@ -275,6 +309,7 @@ export async function updateItem(
 }
 
 export async function claimItem(actorId: string, id: string, opts: MutationOptions): Promise<WorkItem> {
+  if (API_URL) return request<WorkItem>(`/items/${encodeURIComponent(id)}/claim`, { method: "POST" }, actorId, opts);
   return mutate(opts.idempotencyKey, () => {
     const item = findItem(id);
     guard(item, actorId, opts.expectedVersion, isWorker);
@@ -286,6 +321,7 @@ export async function claimItem(actorId: string, id: string, opts: MutationOptio
 }
 
 export async function transitionItem(actorId: string, id: string, to: Status, opts: MutationOptions): Promise<WorkItem> {
+  if (API_URL) return request<WorkItem>(`/items/${encodeURIComponent(id)}/transition`, { method: "POST", body: JSON.stringify({ to }) }, actorId, opts);
   return mutate(opts.idempotencyKey, () => {
     const item = findItem(id);
     const role = guard(item, actorId, opts.expectedVersion, () => true);
@@ -298,6 +334,7 @@ export async function transitionItem(actorId: string, id: string, to: Status, op
 }
 
 export async function addComment(actorId: string, id: string, body: string, opts: MutationOptions): Promise<Comment> {
+  if (API_URL) return request<Comment>(`/items/${encodeURIComponent(id)}/comments`, { method: "POST", body: JSON.stringify({ body }) }, actorId, opts);
   return mutate(opts.idempotencyKey, () => {
     const item = findItem(id);
     guard(item, actorId, opts.expectedVersion, isWorker);
@@ -310,6 +347,7 @@ export async function addComment(actorId: string, id: string, body: string, opts
 }
 
 export async function getTimeline(id: string): Promise<TimelineEntry[]> {
+  if (API_URL) return request<TimelineEntry[]>(`/items/${encodeURIComponent(id)}/timeline`);
   await delay();
   const entries: TimelineEntry[] = [
     ...events.filter((e) => e.itemId === id).map((event) => ({ kind: "event" as const, at: event.at, event })),
@@ -319,6 +357,7 @@ export async function getTimeline(id: string): Promise<TimelineEntry[]> {
 }
 
 export async function getAttention(userId: string): Promise<Attention> {
+  if (API_URL) return request<Attention>(`/attention/${encodeURIComponent(userId)}`);
   await delay();
   const t = Date.now();
   const approverTeams = memberships.filter((m) => m.userId === userId && isApprover(m.role)).map((m) => m.teamId);

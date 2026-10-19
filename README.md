@@ -25,8 +25,20 @@ No extra features, no placeholder text.
 Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+corepack pnpm install
+copy .env.example .env
+# Set MONGODB_URI in .env
+corepack pnpm run dev:api
+# In a second terminal:
+corepack pnpm run dev
+```
+
+The API uses Express and Mongoose. Set `VITE_API_URL=http://localhost:4000/api` in `.env` to use MongoDB-backed data. If it is empty, the frontend uses its local demo data.
+
+For MongoDB Atlas, use the connection string Atlas provides, for example:
+
+```env
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>/<database>?retryWrites=true&w=majority
+API_PORT=4000
+VITE_API_URL=http://localhost:4000/api
 ```
